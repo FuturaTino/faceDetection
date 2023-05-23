@@ -1,8 +1,170 @@
 """
 完成一batch的训练和测试
-
+用tensorboardX记录训练和测试的loss和acc
 函数
 train_step()
 test_step()
 
 """
+from torch.utils.tensorboard import SummaryWriter
+from torchvision.transforms import ToTensor
+from model import Resnet50
+from data_setup import create_dataloaders
+from torch import nn
+import torch
+from tqdm.auto import tqdm
+from typing import Dict,List,Tuple
+from pathlib import Path
+from tqdm.auto import tqdm
+def train_step(model:torch.nn.Module,
+               dataloader:torch.utils.data.DataLoader,
+               loss_fn:torch.nn.Module,
+               optimizer:torch.optim.Optimizer,
+               device:torch.device)->Tuple[float,float]:
+    """
+    该函数将目标PyTorch模型设置为训练模式，然后运行所有必要的训练步骤（前向传递、损失计算、优化器步骤）。
+
+    参数：
+
+    model：要训练的PyTorch模型。
+    dataloader：用于训练模型的DataLoader实例。
+    loss_fn：要最小化的PyTorch损失函数。
+    optimizer：用于最小化损失函数的PyTorch优化器。
+    device：要计算的目标设备（例如“cuda”或“cpu”）。
+    返回值：
+    以(train_loss, train_accuracy)形式返回训练损失和训练准确度指标的元组。例如：
+
+    (0.1112, 0.8743)
+    """    
+    model.train()
+
+    train_loss,train_acc = 0,0
+
+
+    for batch,(x,y) in tqdm(enumerate(dataloader),total=len(dataloader),desc='train_batch'):
+        x,y = x.to(device),y.to(device)
+
+        
+        #前向传播
+        y_pred = model(x)
+
+        # 统一y y_pred的shape
+        y = y.reshape(-1,2)
+        y_pred = y_pred.reshape(-1,2)
+        #计算损失函数
+        loss = loss_fn(y_pred,y)
+        train_loss += loss.item()
+
+        # 优化器清零
+        optimizer.zero_grad()
+
+        # 反向传播
+        loss.backward()
+
+        #优化器更新参数
+        optimizer.step()
+
+        # 计算准确率,将每个特征点与真实值进行比较，如果距离小于0.05，认为预测正确
+        # 损失函数即为欧式距离
+        y_pred = y_pred.reshape(-1,2)
+        y = y.reshape(-1,2)
+        distances = torch.sqrt(torch.sum((y_pred-y)**2,dim=1)).to(device)
+        acc = torch.sum(distances<0.05).item() / (y.shape[0]*y.shape[1])
+        train_acc += acc
+    train_loss /= len(dataloader)
+    train_acc /= len(dataloader)
+    
+    return train_loss,train_acc
+
+
+def test_step(model:torch.nn.Module,
+               dataloader:torch.utils.data.DataLoader,
+               loss_fn:torch.nn.Module,
+               optimizer:torch.optim.Optimizer,
+               device:torch.device)->Tuple[float,float]:
+    """
+    该函数将目标PyTorch模型设置为测试模式，运行一次前向传播
+
+    参数：
+
+    model：要训练的PyTorch模型。
+    dataloader：用于训练模型的DataLoader实例。
+    loss_fn：要最小化的PyTorch损失函数。
+    optimizer：用于最小化损失函数的PyTorch优化器。
+    device：要计算的目标设备（例如“cuda”或“cpu”）。
+    返回值：
+    以(train_loss, train_accuracy)形式返回预测损失和训练准确度指标的元组。例如：
+    
+    (0.1112, 0.8743)
+    """    
+    model.eval()
+
+    #创建loss, acc
+    test_loss,test_acc = 0,0
+    
+    with torch.no_grad():
+        #q: no_grad和model.eval()有什么区别？
+        #a: model.eval()是将模型设置为测试模式，不会影响梯度计算，但是会影响BN和dropout的计算
+        #q:bn和drop是什么
+        #a:bn是batch normalization，批标准化，是一种加速神经网络训练的方法，通过对每一层的输入进行归一化，使得每一层的输入都满足均值为0，方差为1的标准正态分布，从而加速训练
+        #a:dropout是一种正则化方法，通过在训练过程中随机让隐藏层的部分神经元失效，从而减少模型的过拟合
+        for batch,(x,y) in tqdm(enumerate(dataloader),total=len(dataloader),desc='test_batch'):
+            x,y = x.to(device),y.to(device)
+            # 前向传播
+            y_pred = model(x)
+            y_pred = y_pred.reshape(-1,2)
+            y = y.reshape(-1,2)
+            # 计算损失函数
+            loss = loss_fn(y_pred,y)
+            test_loss += loss.item()
+            
+            # 计算acc
+            distances = torch.sqrt(torch.sum((y_pred-y)**2,dim=1)).to(device)
+            acc = torch.sum(distances<0.05).item() / (y.shape[0])
+            test_acc += acc
+    test_loss /= len(dataloader)
+    test_acc /=len(dataloader)
+
+    return test_loss,test_acc 
+
+
+def train(writer:SummaryWriter,
+          epochs:int,
+          model:torch.nn.Module,
+          train_dataloader:torch.utils.data.DataLoader,
+          test_dataloader:torch.utils.data.DataLoader,
+          loss_fn:torch.nn.Module,
+          optimizer:torch.optim.Optimizer,
+          device:torch.device):
+    
+    Path('./model').mkdir(exist_ok=True,parents=True)
+    for epoch in tqdm(range(epochs)):
+        train_loss,train_acc = train_step(model,train_dataloader,loss_fn,optimizer,device)
+        test_loss,test_acc = test_step(model,test_dataloader,loss_fn,optimizer,device)
+
+        print(f'epoch:{epoch},train_loss:{train_loss},train_acc:{train_acc},test_loss:{test_loss},test_acc:{test_acc}')
+
+
+
+        torch.save(model.state_dict(),f'./model/epoch_{epoch}.pth')
+        writer.add_scalar('train_loss',train_loss,epoch)
+        writer.add_scalar('train_acc',train_acc,epoch)
+        writer.add_scalar('test_loss',test_loss,epoch)
+        writer.add_scalar('test_acc',test_acc,epoch)
+        writer.flush()
+    writer.close()
+
+if __name__ == "__main__":
+    loss_fn = nn.MSELoss()
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    model = Resnet50(196).to(device)
+    optimizer = torch.optim.Adam(model.parameters(),lr=0.001)
+    train_dataloader,test_dataloader = create_dataloaders('data\WFLW_annotations\WFLW_annotations\list_98pt_rect_attr_train_test\list_98pt_rect_attr_train.txt',
+                                                          'data\WFLW_annotations\WFLW_annotations\list_98pt_rect_attr_train_test\list_98pt_rect_attr_test.txt',
+                                                          batch_size=32,
+                                                          num_workers=4,
+                                                          transform=ToTensor())
+    writer = SummaryWriter('./logs')
+    train(writer,100,model,train_dataloader,test_dataloader,loss_fn,optimizer,device)
+
+    
