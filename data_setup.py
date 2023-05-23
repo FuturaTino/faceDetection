@@ -45,8 +45,8 @@ def _resize(image:Image,pts):
     pts = np.array(pts)
     pts.resize(98,2)
     target_size = (224,224)
-    print(pts.shape)
-    print(image.size)
+
+
     pts = pts/255 * target_size[0]
     image = image.resize(target_size,Image.ANTIALIAS)
     return image,pts
@@ -81,7 +81,7 @@ class WFLWDataset(Dataset):
     def __getitem__(self, index):
         img_path = Path('data/' + self.annotations.iloc[index,-1])
         image = Image.open(img_path)
-        landmarks = np.array(self.annotations.iloc[index,:-1])
+        landmarks = np.array(self.annotations.iloc[index,:-1],dtype=np.float32)
 
 
 
@@ -91,9 +91,11 @@ class WFLWDataset(Dataset):
         # 统一图片平均亮度
         image = _relight(image)
 
+        # 转成Tensor
         if self.transform:
             image = self.transform(image)
-        
+            landmarks = self.transform(landmarks)            
+        # image (3,224,224)landmarks (98,2)
         return (image, landmarks)
 
 
@@ -165,6 +167,7 @@ if __name__ == "__main__":
     test_txt_file = 'data\WFLW_annotations\WFLW_annotations\list_98pt_rect_attr_train_test\list_98pt_rect_attr_test.txt'
 
     dataset  = WFLWDataset(train_txt_file,transform=data_transforms()) # (img,landmarks)
-    print(dataset[0][0].shape)
+    #将tensor转成numpy ndarray
+    img,landmarks = dataset[0][0].permute(1,2,0).numpy(),dataset[0][1].numpy()
     plt.imshow(dataset[1][0].permute(1,2,0))
     plt.show()
