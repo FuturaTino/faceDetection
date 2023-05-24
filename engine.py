@@ -71,8 +71,8 @@ def train_step(model:torch.nn.Module,
         # 损失函数即为欧式距离
         y_pred = y_pred.reshape(-1,2)
         y = y.reshape(-1,2)
-        distances = torch.sqrt(torch.sum((y_pred-y)**2,dim=1)).to(device)
-        acc = torch.sum(distances<0.05).item() / (y.shape[0]*y.shape[1])
+        distances = torch.sqrt(torch.sum((y_pred-y)**2,dim=-1)).to(device)
+        acc = torch.sum(distances<0.05).item() / (y.shape[0])
         train_acc += acc
     train_loss /= len(dataloader)
     train_acc /= len(dataloader)
@@ -123,7 +123,10 @@ def test_step(model:torch.nn.Module,
             
             # 计算acc
             distances = torch.sqrt(torch.sum((y_pred-y)**2,dim=-1)).to(device)
-            acc = torch.sum(distances<0.05).item() / (y.shape[0])
+            # y.shape = (batch_size,98,2)
+            # distances.shape = (batch_size,98)
+            # acc.shape = (batch_size,)
+            acc = torch.sum(distances<0.05,dim=1).item() / 98
             test_acc += acc
     test_loss /= len(dataloader)
     test_acc /=len(dataloader)
@@ -139,6 +142,7 @@ def train(writer:SummaryWriter,
           loss_fn:torch.nn.Module,
           optimizer:torch.optim.Optimizer, 
           device:torch.device,
+          model_save_path:Path=None,
           scheduler:torch.optim.lr_scheduler.StepLR =None,
           checkpoint_path:Optional[str]=None):
     
@@ -162,24 +166,41 @@ def train(writer:SummaryWriter,
         # q:为什么很少保存整个模型
         # a:因为模型的参数很多，保存整个模型会占用很大的空间，而且很多时候我们只需要模型的参数，而不需要模型的结构
         
-        if epoch % 1 == 0:
+        if epoch % 100 == 0:
             # 保存模型、优化器、epoch
             checkpoint = {
                 'model':model,
                 'optimizer':optimizer,
                 'epoch':epoch
             }
-            torch.save(checkpoint,f'./model/checkpoint_{epoch}.pth')
-            print(f'save checkpoint to ./model/checkpoint_{epoch}.pth')
+            torch.save(checkpoint,f'{model_save_path}/checkpoint_{epoch}.pth')
+            print(f'save checkpoint to {model_save_path}/checkpoint_{epoch}.pth')
         writer.add_scalar('train_loss',train_loss,epoch)
         writer.add_scalar('train_acc',train_acc,epoch)
         writer.add_scalar('test_loss',test_loss,epoch)
         writer.add_scalar('test_acc',test_acc,epoch)
         writer.flush()
 
-        # Step the scheduler
-        scheduler.step()
+        if scheduler is not None:
+            # Step the scheduler
+            scheduler.step()
     writer.close()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 if __name__ == "__main__":
     loss_fn = loss_fn
