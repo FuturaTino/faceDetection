@@ -16,6 +16,9 @@ from tqdm.auto import tqdm
 from typing import Dict,List,Tuple
 from pathlib import Path
 from tqdm.auto import tqdm
+from utils import loss_fn
+from typing import Optional
+
 def train_step(model:torch.nn.Module,
                dataloader:torch.utils.data.DataLoader,
                loss_fn:torch.nn.Module,
@@ -119,7 +122,7 @@ def test_step(model:torch.nn.Module,
             test_loss += loss.item()
             
             # 计算acc
-            distances = torch.sqrt(torch.sum((y_pred-y)**2,dim=1)).to(device)
+            distances = torch.sqrt(torch.sum((y_pred-y)**2,dim=-1)).to(device)
             acc = torch.sum(distances<0.05).item() / (y.shape[0])
             test_acc += acc
     test_loss /= len(dataloader)
@@ -134,37 +137,72 @@ def train(writer:SummaryWriter,
           train_dataloader:torch.utils.data.DataLoader,
           test_dataloader:torch.utils.data.DataLoader,
           loss_fn:torch.nn.Module,
-          optimizer:torch.optim.Optimizer,
-          device:torch.device):
+          optimizer:torch.optim.Optimizer, 
+          device:torch.device,
+          scheduler:torch.optim.lr_scheduler.StepLR =None,
+          checkpoint_path:Optional[str]=None):
     
+
+    start_epoch = 0
+    if checkpoint_path is not None:
+        checkpoint = torch.load(checkpoint_path)
+        model = checkpoint['model']
+        optimizer = checkpoint['optimizer']
+        start_epoch = checkpoint['epoch']
+        print(f'load checkpoint from {checkpoint_path}')
+
     Path('./model').mkdir(exist_ok=True,parents=True)
-    for epoch in tqdm(range(epochs)):
+    for epoch in tqdm(range(start_epoch,epochs)):
         train_loss,train_acc = train_step(model,train_dataloader,loss_fn,optimizer,device)
         test_loss,test_acc = test_step(model,test_dataloader,loss_fn,optimizer,device)
 
         print(f'epoch:{epoch},train_loss:{train_loss},train_acc:{train_acc},test_loss:{test_loss},test_acc:{test_acc}')
 
 
-
-        torch.save(model.state_dict(),f'./model/epoch_{epoch}.pth')
+        # q:为什么很少保存整个模型
+        # a:因为模型的参数很多，保存整个模型会占用很大的空间，而且很多时候我们只需要模型的参数，而不需要模型的结构
+        
+        if epoch % 1 == 0:
+            # 保存模型、优化器、epoch
+            checkpoint = {
+                'model':model,
+                'optimizer':optimizer,
+                'epoch':epoch
+            }
+            torch.save(checkpoint,f'./model/checkpoint_{epoch}.pth')
+            print(f'save checkpoint to ./model/checkpoint_{epoch}.pth')
         writer.add_scalar('train_loss',train_loss,epoch)
         writer.add_scalar('train_acc',train_acc,epoch)
         writer.add_scalar('test_loss',test_loss,epoch)
         writer.add_scalar('test_acc',test_acc,epoch)
         writer.flush()
+
+        # Step the scheduler
+        scheduler.step()
     writer.close()
 
 if __name__ == "__main__":
-    loss_fn = nn.MSELoss()
+    loss_fn = loss_fn
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model = Resnet50(196).to(device)
-    optimizer = torch.optim.Adam(model.parameters(),lr=0.001)
+    optimizer = torch.optim.Adam(model.parameters(),lr=0.01)
+    scheduler = torch.optim.lr_scheduler.StepLR(optimizer,step_size=30,gamma=0.1)
     train_dataloader,test_dataloader = create_dataloaders('data\WFLW_annotations\WFLW_annotations\list_98pt_rect_attr_train_test\list_98pt_rect_attr_train.txt',
                                                           'data\WFLW_annotations\WFLW_annotations\list_98pt_rect_attr_train_test\list_98pt_rect_attr_test.txt',
                                                           batch_size=32,
                                                           num_workers=4,
                                                           transform=ToTensor())
+    #创建logs文件夹
+    Path('./logs').mkdir(exist_ok=True,parents=True)
     writer = SummaryWriter('./logs')
-    train(writer,100,model,train_dataloader,test_dataloader,loss_fn,optimizer,device)
+    train(writer,
+          100,
+          model,
+          train_dataloader,
+          test_dataloader,
+          loss_fn,optimizer,
+          device,
+          scheduler=scheduler,
+          checkpoint_path=Path(r'D:\Repo\faceDetection\model\checkpoint_1.pth'))
 
     
