@@ -1,0 +1,4 @@
+pytorch ==2.0.0
+torchvision
+torchinfo
+torchmetrics ==0.11.4
