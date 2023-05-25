@@ -18,7 +18,12 @@ class Resnet50(nn.Module):
         self.auto_transforms = self.weights.transforms()
         for param in self.model.parameters():
             param.requires_grad = False
+        for param in self.model.layer4.parameters():
+            param.requires_grad = True
+        for param in self.model.avgpool.parameters():
+            param.requires_grad = True
         self.model.fc = nn.Linear(2048, output_size)
+
     def info(self):
         summary(model=self.model, 
                 input_size=(32, 3, 224, 224), # make sure this is "input_size", not "input_shape"
@@ -42,5 +47,5 @@ if __name__ =='__main__':
     import matplotlib.pyplot as plt
     plt.scatter(y[:,0],y[:,1])
     plt.show()
-    # model.info()
+    model.info()
     
