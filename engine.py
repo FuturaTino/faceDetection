@@ -166,7 +166,7 @@ def train(writer:SummaryWriter,
         # q:为什么很少保存整个模型
         # a:因为模型的参数很多，保存整个模型会占用很大的空间，而且很多时候我们只需要模型的参数，而不需要模型的结构
         
-        if epoch % 100 == 0:
+        if epoch % 20 == 0:
             # 保存模型、优化器、epoch
             checkpoint = {
                 'model_state_dict':model.state_dict(),
