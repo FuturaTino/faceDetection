@@ -115,7 +115,9 @@ class WFLWDataset(Dataset):
         # 转成Tensor
         if self.transform:
             image = self.transform(image)
-            pts = transforms.ToTensor()(pts)            
+            # 转为Tensor float32
+            pts = transforms.ToTensor()(pts)
+            pts.to(torch.float32)    
         # image (3,224,224)landmarks (98,2)
         return (image, pts)
 
@@ -168,13 +170,13 @@ if __name__ == "__main__":
     train_txt_file = 'data\WFLW_annotations\WFLW_annotations\list_98pt_rect_attr_train_test\list_98pt_rect_attr_train.txt'
     test_txt_file = 'data\WFLW_annotations\WFLW_annotations\list_98pt_rect_attr_train_test\list_98pt_rect_attr_test.txt'
     dataset  = WFLWDataset(train_txt_file,transform=data_transforms()) # (img,landmarks)
-
-    idx = 2
+    import random 
+    idx = random.randint(0,len(dataset))
     #将tensor转成numpy ndarray
     img,landmarks = dataset[idx][0].permute(1,2,0).numpy(),dataset[idx][1].numpy().squeeze()
     
     plt.imshow(img)
     plt.scatter(landmarks[:,0],landmarks[:,1],s=10,c='r')
     print(landmarks.shape)
-    print(img)
+    print(landmarks)
     plt.show()
