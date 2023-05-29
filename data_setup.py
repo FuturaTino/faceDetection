@@ -32,6 +32,28 @@ from matplotlib import pyplot as plt
 import numpy as np
 import math
 NUM_WORKERS = os.cpu_count()
+
+# 根据照片脸部正方形坐标，裁剪图片，只保留脸部的正方形区域,并resize成224,224
+def _crop_face(img,rect):
+    """
+    根据照片脸部正方形坐标，裁剪图片，只保留脸部的正方形区域,并resize成224,224
+    Args:
+        img: PIL.Image
+        rect: 人脸框的坐标，按照x, y, w, h的顺序，其中x, y是左上角的坐标，w和h是人脸框的宽度和高度。
+    return:
+        img: PIL.Image
+    """
+    x_min, y_min, x_max,y_max = rect
+    
+    x_center = (x_min + x_max) / 2
+    y_center = (y_min + y_max) / 2
+    
+    side = max(x_center-x_min,y_center-y_min)  # 稍微扩大区域，包括更多细节
+    side = side * 1.5
+    rect = (x_center - side, y_center - side, x_center + side, y_center + side)
+    img = img.crop(rect)
+    return img,rect
+
 def _resize(image:Image,pts):
     """
     将图片resize成224*224
@@ -43,11 +65,9 @@ def _resize(image:Image,pts):
         pts: 人脸98个特征点的坐标，按照x1, y1, x2, y2, ..., x98, y98的顺序排列
     """
     pts = np.array(pts)
-    pts.resize(98,2)
     target_size = (224,224)
-
-
-    pts = pts/255 * target_size[0]
+    # 获取image的宽高
+    pts = pts/image.size * target_size[0] ###################
     image = image.resize(target_size,Image.ANTIALIAS)
     return image,pts
     
@@ -58,7 +78,7 @@ def data_transforms()->transforms.Compose:
     """
     return transforms.Compose([
         transforms.ToTensor(),
-        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+        # transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
     ])
 
 # 统一图片平均亮度
@@ -81,23 +101,23 @@ class WFLWDataset(Dataset):
     def __getitem__(self, index):
         img_path = Path('data/' + self.annotations.iloc[index,-1])
         image = Image.open(img_path)
-        landmarks = np.array(self.annotations.iloc[index,:-1],dtype=np.float32)
+        meta = np.array(self.annotations.iloc[index,:-1],dtype=np.float32)
 
-
-
+        rect = [int(x) for x in meta[196:200]]
+        pts = meta[0:196].reshape(98,2)
         # 裁剪图片，保留脸部区域
-        image = _crop_face(image,landmarks[196:200])
-        image,landmarks = _resize(image,landmarks[0:196])
+        image,rect = _crop_face(image,rect) # 变成了正方形框
+        pts -= rect[0:2]
+        image,pts = _resize(image,pts)
         # 统一图片平均亮度
         image = _relight(image)
 
         # 转成Tensor
         if self.transform:
             image = self.transform(image)
-            image /= 255
-            landmarks = self.transform(landmarks)            
+            pts = transforms.ToTensor()(pts)            
         # image (3,224,224)landmarks (98,2)
-        return (image, landmarks)
+        return (image, pts)
 
 
 
@@ -143,32 +163,18 @@ def create_dataloaders(
 
     return (train_dataloader, test_dataloader)
 
-# 根据照片脸部正方形坐标，裁剪图片，只保留脸部的正方形区域,并resize成224,224
-def _crop_face(img,rect):
-    """
-    根据照片脸部正方形坐标，裁剪图片，只保留脸部的正方形区域,并resize成224,224
-    Args:
-        img: PIL.Image
-        rect: 人脸框的坐标，按照x, y, w, h的顺序，其中x, y是左上角的坐标，w和h是人脸框的宽度和高度。
-    return:
-        img: PIL.Image
-    """
-    x_min, y_min, x_max,y_max = rect
-    
-    x_center = (x_min + x_max) / 2
-    y_center = (y_min + y_max) / 2
-    
-    side = max(x_center-x_min,y_center-y_min) * 1.5 # 稍微扩大区域，包括更多细节
-    rect = (x_center - side, y_center - side, x_center + side, y_center + side)
-    img = img.crop(rect)
-    return img
 
 if __name__ == "__main__":
     train_txt_file = 'data\WFLW_annotations\WFLW_annotations\list_98pt_rect_attr_train_test\list_98pt_rect_attr_train.txt'
     test_txt_file = 'data\WFLW_annotations\WFLW_annotations\list_98pt_rect_attr_train_test\list_98pt_rect_attr_test.txt'
-
     dataset  = WFLWDataset(train_txt_file,transform=data_transforms()) # (img,landmarks)
+
+    idx = 2
     #将tensor转成numpy ndarray
-    img,landmarks = dataset[0][0].permute(1,2,0).numpy(),dataset[0][1].numpy()
-    plt.imshow(dataset[1][0].permute(1,2,0))
+    img,landmarks = dataset[idx][0].permute(1,2,0).numpy(),dataset[idx][1].numpy().squeeze()
+    
+    plt.imshow(img)
+    plt.scatter(landmarks[:,0],landmarks[:,1],s=10,c='r')
+    print(landmarks.shape)
+    print(img)
     plt.show()
