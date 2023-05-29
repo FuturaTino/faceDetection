@@ -41,9 +41,9 @@ def train_step(model:torch.nn.Module,
     model.train()
 
     train_loss,train_acc = 0,0
+    batch_size = dataloader.batch_size
 
-
-    for batch,(x,y) in tqdm(enumerate(dataloader),total=len(dataloader),desc='train_batch'):
+    for batch,(x,y) in enumerate(dataloader):
         x,y = x.to(device),y.to(device)
 
         
@@ -51,11 +51,11 @@ def train_step(model:torch.nn.Module,
         y_pred = model(x)
 
         # 统一y y_pred的shape
-        y = y.reshape(-1,2)
-        y_pred = y_pred.reshape(-1,2)
         #计算损失函数
-        loss = loss_fn(y_pred[:,0],y[:,0]) + loss_fn(y_pred[:,1] ,y[:,1])
-        train_loss += loss.item()
+        y_pred = y_pred.reshape(-1,196)
+        y = y.reshape(-1,196)
+        # 计算损失函数
+        loss = loss_fn(y_pred,y) / batch_size
 
         # 优化器清零
         optimizer.zero_grad()
@@ -68,11 +68,12 @@ def train_step(model:torch.nn.Module,
 
         # 计算准确率,将每个特征点与真实值进行比较，如果距离小于0.05，认为预测正确
         # 损失函数即为欧式距离
-        y_pred = y_pred.reshape(-1,2)
-        y = y.reshape(-1,2)
-        distances = torch.sqrt(torch.sum((y_pred-y)**2,dim=-1)).to(device)
+        distances = torch.sqrt(torch.sum((y_pred-y)**2,dim=-1)).to(device) # distances [batch_size*98,]
+        print(distances.shape)
+
         acc = torch.sum(distances<1).item() / (y.shape[0]*y.shape[1])
         train_acc += acc
+        print(f'batch:{batch} |average_img_train_loss:{loss} |acc:{acc}')
     train_loss /= len(dataloader)
     train_acc /= len(dataloader)
     
@@ -103,33 +104,33 @@ def test_step(model:torch.nn.Module,
 
     #创建loss, acc
     test_loss,test_acc = 0,0
-    
+    # 获取batch_size
+    batch_size = dataloader.batch_size
     with torch.no_grad():
         #q: no_grad和model.eval()有什么区别？
         #a: model.eval()是将模型设置为测试模式，不会影响梯度计算，但是会影响BN和dropout的计算
         #q:bn和drop是什么
         #a:bn是batch normalization，批标准化，是一种加速神经网络训练的方法，通过对每一层的输入进行归一化，使得每一层的输入都满足均值为0，方差为1的标准正态分布，从而加速训练
         #a:dropout是一种正则化方法，通过在训练过程中随机让隐藏层的部分神经元失效，从而减少模型的过拟合
-        for batch,(x,y) in tqdm(enumerate(dataloader),total=len(dataloader),desc='test_batch'):
+        for batch,(x,y) in enumerate(dataloader):
             x,y = x.to(device),y.to(device)
             # 前向传播
             y_pred = model(x)
-            y_pred = y_pred.reshape(-1,2)
+            # 统一y y_pred的shape   # [batch_size*98, 2]
+            #计算损失函数
+            y_pred = y_pred.reshape(-1,2) 
             y = y.reshape(-1,2)
             # 计算损失函数
-            loss = loss_fn(y_pred[:,0] ,y[:,0]) + loss_fn(y_pred[:,1] ,y[:,1])
+            loss = loss_fn(y_pred,y) / batch_size
             test_loss += loss.item()
             
             # 计算acc
-            distances = torch.sqrt(torch.sum((y_pred-y)**2,dim=-1)).to(device)
-            # y.shape = (batch_size,98,2)
-            # distances.shape = (batch_size,98)
-            # acc.shape = (batch_size,)
-            acc = torch.sum(distances<1,dim=1).item() / (y.shape[0]*y.shape[1])
+            distances = torch.sqrt(torch.sum((y_pred-y)**2,dim=-1)).to(device) # [batch_size*98,]
+            acc = torch.sum(distances<1).item() / (batch_size*98)
             test_acc += acc
+            print(f'batch:{batch} |average_img_train_loss:{loss} |acc:{acc}')
     test_loss /= len(dataloader)
     test_acc /=len(dataloader)
-
     return test_loss,test_acc 
 
 
@@ -188,6 +189,8 @@ def train(writer:SummaryWriter,
 
 
 if __name__ =='__main__':
-    pass
+    a= torch.rand((3,4))
+    print(torch.sum(a,dim=-1).shape)
+    print(torch.sum(a,dim=-1))
 
     
