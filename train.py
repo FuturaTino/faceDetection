@@ -40,9 +40,10 @@ if __name__ == "__main__":
                                                           batch_size=batch_size,
                                                           num_workers=4,
                                                           transform=ToTensor())
-  #创建logs文件夹
-  Path('./logs').mkdir(exist_ok=True,parents=True)
-  writer = SummaryWriter('./logs')
+  #创建logs文件夹,先检查args.log_dir所在的父目录是否存在，不存在就创建
+  if not Path(args.log_dir).parent.exists():
+    Path(args.log_dir).mkdir(exist_ok=True,parents=True)
+  writer = SummaryWriter(args.log_dir)
   train(writer,
           epochs,
           model,
