@@ -50,10 +50,10 @@ def train_step(model:torch.nn.Module,
         #前向传播
         y_pred = model(x)
 
-        # 统一y y_pred的shape
+        # 统一y y_pred的shape  [batch_size*98, 2]
         #计算损失函数
-        y_pred = y_pred.reshape(-1,196)
-        y = y.reshape(-1,196)
+        y_pred = y_pred.reshape(-1,2)
+        y = y.reshape(-1,2)
         # 计算损失函数
         loss = loss_fn(y_pred,y) / batch_size
 
@@ -69,9 +69,8 @@ def train_step(model:torch.nn.Module,
         # 计算准确率,将每个特征点与真实值进行比较，如果距离小于0.05，认为预测正确
         # 损失函数即为欧式距离
         distances = torch.sqrt(torch.sum((y_pred-y)**2,dim=-1)).to(device) # distances [batch_size*98,]
-        print(distances.shape)
 
-        acc = torch.sum(distances<1).item() / (y.shape[0]*y.shape[1])
+        acc = torch.sum(distances<1).item() / (batch_size*98)
         train_acc += acc
         print(f'batch:{batch} |average_img_train_loss:{loss} |acc:{acc}')
     train_loss /= len(dataloader)
