@@ -50,11 +50,11 @@ def train_step(model:torch.nn.Module,
         
         #前向传播
         y_pred = model(x)
-
         # 统一y y_pred的shape  [batch_size*98, 2]
         #计算损失函数
         y_pred = y_pred.reshape(-1,2)
         y = y.reshape(-1,2)
+        print(y[:10])
         # 计算损失函数
         loss = loss_fn(y_pred[:,0],y[:,0]) + loss_fn(y_pred[:,1],y[:,1])  # 一个batch的平均损失
         loss = torch.sqrt(loss) # 损失函数即为欧式距离

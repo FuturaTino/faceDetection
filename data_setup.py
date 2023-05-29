@@ -57,9 +57,9 @@ def data_transforms()->transforms.Compose:
     数据预处理
     """
     return transforms.Compose([
-        transforms.ToTensor()
+        transforms.ToTensor(),
+        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
     ])
-
 
 # 统一图片平均亮度
 def _relight(image:Image)->Image:
@@ -94,6 +94,7 @@ class WFLWDataset(Dataset):
         # 转成Tensor
         if self.transform:
             image = self.transform(image)
+            image /= 255
             landmarks = self.transform(landmarks)            
         # image (3,224,224)landmarks (98,2)
         return (image, landmarks)
