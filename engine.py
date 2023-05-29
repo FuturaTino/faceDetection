@@ -56,8 +56,9 @@ def train_step(model:torch.nn.Module,
         y_pred = y_pred.reshape(-1,2)
         y = y.reshape(-1,2)
         # 计算损失函数
-        loss = loss_fn(y_pred,y) / batch_size
-
+        loss = loss_fn(y_pred[:,0],y[:0]) + loss_fn(y_pred[:,1],y[:,1]) 
+        loss /= (batch_size * 98)
+        train_loss += loss.item()
         # 优化器清零
         optimizer.zero_grad()
 
@@ -122,7 +123,8 @@ def test_step(model:torch.nn.Module,
             y_pred = y_pred.reshape(-1,2) 
             y = y.reshape(-1,2)
             # 计算损失函数
-            loss = loss_fn(y_pred,y) / batch_size
+            loss = loss_fn(y_pred[:,0],y[:0]) + loss_fn(y_pred[:,1],y[:,1]) 
+            loss /= (batch_size * 98)
             test_loss += loss.item()
             
             # 计算acc
