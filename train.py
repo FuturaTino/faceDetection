@@ -26,7 +26,7 @@ if __name__ == "__main__":
   loss_fn = torch.nn.MSELoss(reduction="mean")
   optimizer = torch.optim.Adam(model.parameters(),lr=0.1)
   scheduler = torch.optim.lr_scheduler.StepLR(optimizer,step_size=20,gamma=0.1)
-
+  k = args.k
   train_dir = args.train_dir
   test_dir = args.test_dir
   epochs = args.epochs
@@ -51,6 +51,7 @@ if __name__ == "__main__":
           test_dataloader,
           loss_fn,optimizer,
           device,
+          k=5, # 计算acc时的阈值
           model_save_path=model_save_path,
           scheduler=scheduler,
           checkpoint_path=None)

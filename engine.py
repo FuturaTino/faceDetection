@@ -22,7 +22,8 @@ def train_step(model:torch.nn.Module,
                dataloader:torch.utils.data.DataLoader,
                loss_fn:torch.nn.Module,
                optimizer:torch.optim.Optimizer,
-               device:torch.device)->Tuple[float,float]:
+               device:torch.device,
+               k=5)->Tuple[float,float]:
     """
     该函数将目标PyTorch模型设置为训练模式，然后运行所有必要的训练步骤（前向传递、损失计算、优化器步骤）。
 
@@ -70,7 +71,7 @@ def train_step(model:torch.nn.Module,
         # 损失函数即为欧式距离
         distances = torch.sqrt(torch.sum((y_pred-y)**2,dim=-1)).to(device) # distances [batch_size*98,]
 
-        acc = torch.sum(distances<1).item() / (batch_size*98)
+        acc = torch.sum(distances<k).item() / (batch_size*98)
         train_acc += acc
         print(f'batch:{batch} |average_img_train_loss:{loss} |acc:{acc}')
     train_loss /= len(dataloader)
@@ -83,7 +84,8 @@ def test_step(model:torch.nn.Module,
                dataloader:torch.utils.data.DataLoader,
                loss_fn:torch.nn.Module,
                optimizer:torch.optim.Optimizer,
-               device:torch.device)->Tuple[float,float]:
+               device:torch.device,
+               k=5)->Tuple[float,float]:
     """
     该函数将目标PyTorch模型设置为测试模式，运行一次前向传播
 
@@ -125,7 +127,7 @@ def test_step(model:torch.nn.Module,
             
             # 计算acc
             distances = torch.sqrt(torch.sum((y_pred-y)**2,dim=-1)).to(device) # [batch_size*98,]
-            acc = torch.sum(distances<1).item() / (batch_size*98)
+            acc = torch.sum(distances<k).item() / (batch_size*98)
             test_acc += acc
             print(f'batch:{batch} |average_img_train_loss:{loss} |acc:{acc}')
     test_loss /= len(dataloader)
@@ -143,6 +145,7 @@ def train(writer:SummaryWriter,
           device:torch.device,
           model_save_path:Path=None,
           scheduler:torch.optim.lr_scheduler.StepLR =None,
+          k=5,
           checkpoint_path:Optional[str]=None):
     
 
@@ -157,8 +160,8 @@ def train(writer:SummaryWriter,
 
     Path('./model').mkdir(exist_ok=True,parents=True)
     for epoch in tqdm(range(start_epoch,epochs)):
-        train_loss,train_acc = train_step(model,train_dataloader,loss_fn,optimizer,device)
-        test_loss,test_acc = test_step(model,test_dataloader,loss_fn,optimizer,device)
+        train_loss,train_acc = train_step(model,train_dataloader,loss_fn,optimizer,device,k)
+        test_loss,test_acc = test_step(model,test_dataloader,loss_fn,optimizer,device,k)
 
         print(f'epoch:{epoch},train_loss:{train_loss},train_acc:{train_acc},test_loss:{test_loss},test_acc:{test_acc}')
 

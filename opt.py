@@ -10,4 +10,5 @@ def get_opt():
     parser.add_argument('--test_dir',type=str,default=r'data\WFLW_annotations\WFLW_annotations\list_98pt_rect_attr_train_test\list_98pt_rect_attr_test.txt')
     parser.add_argument('--model_save_path',type=str,default=r'./models')
     parser.add_argument('--log_dir',type=str,default=r'./logs')
+    parser.add_argument('--k',type=int,default=1)
     return parser.parse_args()
