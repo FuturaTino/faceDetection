@@ -31,8 +31,9 @@ from pathlib import Path
 from matplotlib import pyplot as plt
 import numpy as np
 import math
+import time
+import random 
 NUM_WORKERS = os.cpu_count()
-
 # 根据照片脸部正方形坐标，裁剪图片，只保留脸部的正方形区域,并resize成224,224
 def _crop_face(img,rect):
     """
@@ -68,9 +69,39 @@ def _resize(image:Image,pts):
     target_size = (224,224)
     # 获取image的宽高
     pts = pts/image.size * target_size[0] ###################
-    image = image.resize(target_size,Image.ANTIALIAS)
+    image = image.resize(target_size,Image.LANCZOS)
     return image,pts
-    
+
+def _fliplr(image:Image,pts:np.ndarray):
+    """
+    随机水平翻转图片
+    Args:
+        image: PIL.Image
+        pts: 人脸98个特征点的坐标
+    return:
+        image: PIL.Image
+        pts: 反转后，对应的人脸98个特征点的坐标
+    """
+    a = np.ndarray((98,2),dtype=np.float32)
+    if random.random() >=0.5:
+        print(f'翻转前的pts \n{pts}')
+        pts[:,0] = 224 - pts[:,0]
+        pts = pts[_fliplr.perm]
+        image = image.transpose(Image.FLIP_LEFT_RIGHT)
+        print(f'翻转后的pts \n{pts}')
+        # 将反转后对应点的坐标赋值给原来的点
+        # 以前五个点为例，原来的点为[1,2,3,4,5....]，反转后的点为[32,31,30,29,28....]，详情看
+    return image,pts
+
+# 统一图片平均亮度
+def _relight(image:Image)->Image:
+    r,g,b = ImageStat.Stat(image).mean
+    brightness = math.sqrt(0.241*r**2 + 0.691*g**2 + 0.068*b**2)
+    # 0.241, 0.691, 0.068是RGB转换为YIQ的转换矩阵
+    image = ImageEnhance.Brightness(image).enhance(128/brightness)
+    return image
+
+
 # 裁剪 缩放都已经在上面完成了
 def data_transforms()->transforms.Compose:
     """
@@ -81,19 +112,13 @@ def data_transforms()->transforms.Compose:
         # transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
     ])
 
-# 统一图片平均亮度
-def _relight(image:Image)->Image:
-    r,g,b = ImageStat.Stat(image).mean
-    brightness = math.sqrt(0.241*r**2 + 0.691*g**2 + 0.068*b**2)
-    # 0.241, 0.691, 0.068是RGB转换为YIQ的转换矩阵
-    image = ImageEnhance.Brightness(image).enhance(128/brightness)
-    return image
 class WFLWDataset(Dataset):
     """
     """
     def __init__(self, txt_file, transform=None):
         self.annotations = pd.read_csv(txt_file,sep=' ',header=None)
         self.transform = transform
+
     
     def __len__ (self):
         return len(self.annotations)
@@ -109,15 +134,15 @@ class WFLWDataset(Dataset):
         image,rect = _crop_face(image,rect) # 变成了正方形框
         pts -= rect[0:2]
         image,pts = _resize(image,pts)
+        # 随机水平翻转图片
+        image,pts = _fliplr(image,pts)
         # 统一图片平均亮度
         image = _relight(image)
-
         # 转成Tensor
         if self.transform:
             image = self.transform(image)
             # 转为Tensor float32
-            pts = transforms.ToTensor()(pts)
-            pts.to(torch.float32)    
+            pts = torch.from_numpy(pts).float()
         # image (3,224,224)landmarks (98,2)
         return (image, pts)
 
@@ -167,16 +192,47 @@ def create_dataloaders(
 
 
 if __name__ == "__main__":
+    #全排列向量_perm ，记录关键点反转后对应关系 shape(98,)
+    # example:  _fliplr[96] = 97  ,说明第96个关键点反转后对应的关键点是第97个
+    # 为什么说是全排列呢？因为这个_perm是在 初始化的时候就固定好了，不会改变的
+    random.seed(42)
+    _fliplr.perm = np.load('data/fliplr_perm.npy')
     train_txt_file = 'data\WFLW_annotations\WFLW_annotations\list_98pt_rect_attr_train_test\list_98pt_rect_attr_train.txt'
     test_txt_file = 'data\WFLW_annotations\WFLW_annotations\list_98pt_rect_attr_train_test\list_98pt_rect_attr_test.txt'
     dataset  = WFLWDataset(train_txt_file,transform=data_transforms()) # (img,landmarks)
-    import random 
-    idx = random.randint(0,len(dataset))
-    #将tensor转成numpy ndarray
-    img,landmarks = dataset[idx][0].permute(1,2,0).numpy(),dataset[idx][1].numpy().squeeze()
-    
-    plt.imshow(img)
-    plt.scatter(landmarks[:,0],landmarks[:,1],s=10,c='r')
-    print(landmarks.shape)
-    print(landmarks)
+
+
+    # idx = random.randint(0,len(dataset))
+
+    print(_fliplr.perm)
+    idx = 3
+
+    # 这里很重要，dataset调用一次，就会调用一次__getitem__方法，不要写成dataset[idx][0],dataset[idx][1]，这样会调用两次，导致图片和关键点不对应
+    # 调试 六个小时，才发现这个问题，哎，学会了debug，hhhhh
+    # img,pts = dataset[idx]
+    # img = img.permute(1,2,0)
+    # pts = pts.numpy()
+    # print(type(pts))
+    # print(f'最终获取的Pts:\n {pts}')
+    # # print(f'_fliplr.perm:\n {_fliplr.perm}')
+    # plt.imshow(img)
+    # plt.scatter(pts[:,0],pts[:,1],s=10,c='r')
+    # plt.show()
+
+    # 一次展示九张图
+    fig = plt.figure()
+    fig.subplots_adjust(wspace=0,hspace=0,left=0,right=1,bottom=0,top=1)
+
+    for i in range(9):
+        idx = random.randint(0,len(dataset))
+        img,landmarks = dataset[idx]
+        img.permute(1,2,0)
+        landmarks = landmarks.numpy()
+        ax = fig.add_subplot(3,3,i+1)
+        # 去除坐标轴
+        ax.axis('off')
+        #图片间隔为0
+
+        ax.imshow(img.permute(1,2,0))
+        ax.scatter(landmarks[:,0],landmarks[:,1],s=10,c='r')
     plt.show()
