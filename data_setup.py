@@ -84,11 +84,9 @@ def _fliplr(image:Image,pts:np.ndarray):
     """
     a = np.ndarray((98,2),dtype=np.float32)
     if random.random() >=0.5:
-        print(f'翻转前的pts \n{pts}')
         pts[:,0] = 224 - pts[:,0]
         pts = pts[_fliplr.perm]
         image = image.transpose(Image.FLIP_LEFT_RIGHT)
-        print(f'翻转后的pts \n{pts}')
         # 将反转后对应点的坐标赋值给原来的点
         # 以前五个点为例，原来的点为[1,2,3,4,5....]，反转后的点为[32,31,30,29,28....]，详情看
     return image,pts
@@ -195,7 +193,7 @@ if __name__ == "__main__":
     #全排列向量_perm ，记录关键点反转后对应关系 shape(98,)
     # example:  _fliplr[96] = 97  ,说明第96个关键点反转后对应的关键点是第97个
     # 为什么说是全排列呢？因为这个_perm是在 初始化的时候就固定好了，不会改变的
-    random.seed(42)
+    # random.seed(42)
     _fliplr.perm = np.load('data/fliplr_perm.npy')
     train_txt_file = 'data\WFLW_annotations\WFLW_annotations\list_98pt_rect_attr_train_test\list_98pt_rect_attr_train.txt'
     test_txt_file = 'data\WFLW_annotations\WFLW_annotations\list_98pt_rect_attr_train_test\list_98pt_rect_attr_test.txt'
@@ -204,7 +202,6 @@ if __name__ == "__main__":
 
     # idx = random.randint(0,len(dataset))
 
-    print(_fliplr.perm)
     idx = 3
 
     # 这里很重要，dataset调用一次，就会调用一次__getitem__方法，不要写成dataset[idx][0],dataset[idx][1]，这样会调用两次，导致图片和关键点不对应
