@@ -116,6 +116,7 @@ class WFLWDataset(Dataset):
     def __init__(self, txt_file, transform=None):
         self.annotations = pd.read_csv(txt_file,sep=' ',header=None)
         self.transform = transform
+        _fliplr.perm = np.load('data/fliplr_perm.npy')
 
     
     def __len__ (self):
