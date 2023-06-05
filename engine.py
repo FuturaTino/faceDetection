@@ -50,13 +50,11 @@ def train_step(model:torch.nn.Module,
         
         #前向传播
         y_pred = model(x)
-        # 统一y y_pred的shape  [batch_size*98, 2]
-        #计算损失函数
-        y_pred = y_pred.reshape(-1,2)
-        y = y.reshape(-1,2)
-        # 计算损失函数
-        loss = loss_fn(y_pred[:,0],y[:,0]) + loss_fn(y_pred[:,1],y[:,1])  # 一个batch的平均损失
-        loss = torch.sqrt(loss) # 损失函数即为欧式距离
+
+        # 计算损失函数, 1 batch的平均损失
+        loss = loss_fn(y_pred,y) 
+        # loss = loss_fn(y_pred[:,0],y[:,0]) + loss_fn(y_pred[:,1],y[:,1])  # 一个batch的平均损失
+        # loss = torch.sqrt(loss) # 损失函数即为欧式距离
         train_loss += loss.item()
         # 优化器清零
         optimizer.zero_grad()
@@ -67,10 +65,13 @@ def train_step(model:torch.nn.Module,
         #优化器更新参数
         optimizer.step()
 
+
+        # reshape
+        y_pred = y_pred.reshape(-1,2)
+        y = y.reshape(-1,2)
         # 计算准确率,将每个特征点与真实值进行比较，如果距离小于0.05，认为预测正确
         # 损失函数即为欧式距离
         distances = torch.sqrt(torch.sum((y_pred-y)**2,dim=-1)).to(device) # distances [batch_size*98,]
-
         acc = torch.sum(distances<k).item() / (batch_size*98)
         train_acc += acc
         print(f'batch:{batch} |average_img_train_loss:{loss} |acc:{acc}')
@@ -117,15 +118,14 @@ def test_step(model:torch.nn.Module,
             x,y = x.to(device),y.to(device)
             # 前向传播
             y_pred = model(x)
-            # 统一y y_pred的shape   # [batch_size*98, 2]
-            #计算损失函数
-            y_pred = y_pred.reshape(-1,2) 
-            y = y.reshape(-1,2)
+
             # 计算损失函数
-            loss = loss_fn(y_pred[:,0],y[:,0]) + loss_fn(y_pred[:,1],y[:,1])  # 一个batch的平均损失
-            loss = torch.sqrt(loss) # 损失函数即为欧式距离
+            loss = loss_fn(y_pred,y)
             test_loss += loss.item()
-            
+
+            # reshape
+            y_pred = y_pred.reshape(-1,2)
+            y = y.reshape(-1,2)
             # 计算acc
             distances = torch.sqrt(torch.sum((y_pred-y)**2,dim=-1)).to(device) # [batch_size*98,]
             acc = torch.sum(distances<k).item() / (batch_size*98)
@@ -170,7 +170,7 @@ def train(writer:SummaryWriter,
         # q:为什么很少保存整个模型
         # a:因为模型的参数很多，保存整个模型会占用很大的空间，而且很多时候我们只需要模型的参数，而不需要模型的结构
         
-        if epoch % 20 == 0:
+        if epoch % 9 == 0:
             # 保存模型、优化器、epoch
             checkpoint = {
                 'model_state_dict':model.state_dict(),
