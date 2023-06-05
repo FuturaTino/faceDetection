@@ -54,4 +54,4 @@ if __name__ == "__main__":
           k=5, # 计算acc时的阈值
           model_save_path=model_save_path,
           scheduler=scheduler,
-          checkpoint_path=None)
+          checkpoint_path=args.checkpoint_path)
