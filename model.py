@@ -28,7 +28,7 @@ class Resnet50(nn.Module):
         summary(model=self.model, 
                 input_size=(32, 3, 224, 224), # make sure this is "input_size", not "input_shape"
                 # col_names=["input_size"], # uncomment for smaller output
-                col_names=["input_size", "output_size", "num_params", "trainable"],
+                col_names=["input_size", "output_size", "num_params", "trainable",],
                 col_width=20,
                 row_settings=["var_names"])
     def forward(self,x):
@@ -37,15 +37,16 @@ class Resnet50(nn.Module):
 
 if __name__ =='__main__':
     model = Resnet50(196)
-    x = torch.randn(1,3,224,224)
-    y = model(x)
-    print(y.shape)
-    print(y)
-    y = y.reshape(1,-1,2)
-    print(y)
-    y = y[0].detach().numpy()
-    import matplotlib.pyplot as plt
-    plt.scatter(y[:,0],y[:,1])
-    plt.show()
+    print(list(model.children()))
+    # x = torch.randn(1,3,224,224)
+    # y = model(x)
+    # print(y.shape)
+    # print(y)
+    # y = y.reshape(1,-1,2)
+    # print(y)
+    # y = y[0].detach().numpy()
+    # import matplotlib.pyplot as plt
+    # plt.scatter(y[:,0],y[:,1])
+    # plt.show()
     model.info()
     

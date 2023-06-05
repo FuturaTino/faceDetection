@@ -34,70 +34,6 @@ import math
 import time
 import random 
 NUM_WORKERS = os.cpu_count()
-# 根据照片脸部正方形坐标，裁剪图片，只保留脸部的正方形区域,并resize成224,224
-def _crop_face(img,rect):
-    """
-    根据照片脸部正方形坐标，裁剪图片，只保留脸部的正方形区域,并resize成224,224
-    Args:
-        img: PIL.Image
-        rect: 人脸框的坐标，按照x, y, w, h的顺序，其中x, y是左上角的坐标，w和h是人脸框的宽度和高度。
-    return:
-        img: PIL.Image
-    """
-    x_min, y_min, x_max,y_max = rect
-    
-    x_center = (x_min + x_max) / 2
-    y_center = (y_min + y_max) / 2
-    
-    side = max(x_center-x_min,y_center-y_min)  # 稍微扩大区域，包括更多细节
-    side = side * 1.5
-    rect = (x_center - side, y_center - side, x_center + side, y_center + side)
-    img = img.crop(rect)
-    return img,rect
-
-def _resize(image:Image,pts):
-    """
-    将图片resize成224*224
-    Args:
-        image: PIL.Image
-        pts: 人脸98个特征点的坐标，按照x1, y1, x2, y2, ..., x98, y98的顺序排列
-    return:
-        image: PIL.Image
-        pts: 人脸98个特征点的坐标，按照x1, y1, x2, y2, ..., x98, y98的顺序排列
-    """
-    pts = np.array(pts)
-    target_size = (224,224)
-    # 获取image的宽高
-    pts = pts/image.size * target_size[0] ###################
-    image = image.resize(target_size,Image.LANCZOS)
-    return image,pts
-
-def _fliplr(image:Image,pts:np.ndarray):
-    """
-    随机水平翻转图片
-    Args:
-        image: PIL.Image
-        pts: 人脸98个特征点的坐标
-    return:
-        image: PIL.Image
-        pts: 反转后，对应的人脸98个特征点的坐标
-    """
-    a = np.ndarray((98,2),dtype=np.float32)
-    if random.random() >=0.5:
-        pts[:,0] = 224 - pts[:,0]
-        pts = pts[_fliplr.perm]
-        image = image.transpose(Image.FLIP_LEFT_RIGHT)
-        # 将反转后对应点的坐标赋值给原来的点
-        # 以前五个点为例，原来的点为[1,2,3,4,5....]，反转后的点为[32,31,30,29,28....]，详情看
-    return image,pts
-
-# 统一图片平均亮度
-def _relight(image:Image)->Image:
-    r,g,b = ImageStat.Stat(image).mean
-    brightness = math.sqrt(0.241*r**2 + 0.691*g**2 + 0.068*b**2)
-    # 0.241, 0.691, 0.068是RGB转换为YIQ的转换矩阵
-    image = ImageEnhance.Brightness(image).enhance(128/brightness)
-    return image
 
 
 # 裁剪 缩放都已经在上面完成了
@@ -116,7 +52,7 @@ class WFLWDataset(Dataset):
     def __init__(self, txt_file, transform=None):
         self.annotations = pd.read_csv(txt_file,sep=' ',header=None)
         self.transform = transform
-        _fliplr.perm = np.load('data/fliplr_perm.npy')
+        self.perm = np.load('data/fliplr_perm.npy')
 
     
     def __len__ (self):
@@ -130,13 +66,13 @@ class WFLWDataset(Dataset):
         rect = [int(x) for x in meta[196:200]]
         pts = meta[0:196].reshape(98,2)
         # 裁剪图片，保留脸部区域
-        image,rect = _crop_face(image,rect) # 变成了正方形框
+        image,rect = self._crop_face(image,rect) # 变成了正方形框
         pts -= rect[0:2]
-        image,pts = _resize(image,pts)
+        image,pts = self._resize(image,pts)
         # 随机水平翻转图片
-        image,pts = _fliplr(image,pts)
+        image,pts = self._fliplr(image,pts)
         # 统一图片平均亮度
-        image = _relight(image)
+        image = self._relight(image)
         # 转成Tensor
         if self.transform:
             image = self.transform(image)
@@ -145,6 +81,70 @@ class WFLWDataset(Dataset):
         # image (3,224,224)landmarks (98,2)
         return (image, pts)
 
+    # 根据照片脸部正方形坐标，裁剪图片，只保留脸部的正方形区域,并resize成224,224
+    def _crop_face(self,img,rect):
+        """
+        根据照片脸部正方形坐标，裁剪图片，只保留脸部的正方形区域,并resize成224,224
+        Args:
+            img: PIL.Image
+            rect: 人脸框的坐标，按照x, y, w, h的顺序，其中x, y是左上角的坐标，w和h是人脸框的宽度和高度。
+        return:
+            img: PIL.Image
+        """
+        x_min, y_min, x_max,y_max = rect
+        
+        x_center = (x_min + x_max) / 2
+        y_center = (y_min + y_max) / 2
+        
+        side = max(x_center-x_min,y_center-y_min)  # 稍微扩大区域，包括更多细节
+        side = side * 1.5
+        rect = (x_center - side, y_center - side, x_center + side, y_center + side)
+        img = img.crop(rect)
+        return img,rect
+
+    def _resize(self,image:Image,pts):
+        """
+        将图片resize成224*224
+        Args:
+            image: PIL.Image
+            pts: 人脸98个特征点的坐标，按照x1, y1, x2, y2, ..., x98, y98的顺序排列
+        return:
+            image: PIL.Image
+            pts: 人脸98个特征点的坐标，按照x1, y1, x2, y2, ..., x98, y98的顺序排列
+        """
+        pts = np.array(pts)
+        target_size = (224,224)
+        # 获取image的宽高
+        pts = pts/image.size * target_size[0] ###################
+        image = image.resize(target_size,Image.LANCZOS)
+        return image,pts
+
+    def _fliplr(self,image:Image,pts:np.ndarray):
+        """
+        随机水平翻转图片
+        Args:
+            image: PIL.Image
+            pts: 人脸98个特征点的坐标
+        return:
+            image: PIL.Image
+            pts: 反转后，对应的人脸98个特征点的坐标
+        """
+        a = np.ndarray((98,2),dtype=np.float32)
+        if random.random() >=0.5:
+            pts[:,0] = 224 - pts[:,0]
+            pts = pts[self.perm]
+            image = image.transpose(Image.FLIP_LEFT_RIGHT)
+            # 将反转后对应点的坐标赋值给原来的点
+            # 以前五个点为例，原来的点为[1,2,3,4,5....]，反转后的点为[32,31,30,29,28....]，详情看
+        return image,pts
+
+    # 统一图片平均亮度
+    def _relight(self,image:Image)->Image:
+        r,g,b = ImageStat.Stat(image).mean
+        brightness = math.sqrt(0.241*r**2 + 0.691*g**2 + 0.068*b**2)
+        # 0.241, 0.691, 0.068是RGB转换为YIQ的转换矩阵
+        image = ImageEnhance.Brightness(image).enhance(128/brightness)
+        return image
 
 
 def create_dataloaders(
@@ -195,7 +195,6 @@ if __name__ == "__main__":
     # example:  _fliplr[96] = 97  ,说明第96个关键点反转后对应的关键点是第97个
     # 为什么说是全排列呢？因为这个_perm是在 初始化的时候就固定好了，不会改变的
     # random.seed(42)
-    _fliplr.perm = np.load('data/fliplr_perm.npy')
     train_txt_file = 'data\WFLW_annotations\WFLW_annotations\list_98pt_rect_attr_train_test\list_98pt_rect_attr_train.txt'
     test_txt_file = 'data\WFLW_annotations\WFLW_annotations\list_98pt_rect_attr_train_test\list_98pt_rect_attr_test.txt'
     dataset  = WFLWDataset(train_txt_file,transform=data_transforms()) # (img,landmarks)

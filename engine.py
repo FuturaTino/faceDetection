@@ -53,8 +53,6 @@ def train_step(model:torch.nn.Module,
         y = y.reshape(-1,196)
         # 计算损失函数, 1 batch的平均损失
         loss = loss_fn(y_pred,y) 
-        # loss = loss_fn(y_pred[:,0],y[:,0]) + loss_fn(y_pred[:,1],y[:,1])  # 一个batch的平均损失
-        # loss = torch.sqrt(loss) # 损失函数即为欧式距离
         train_loss += loss.item()
         # 优化器清零
         optimizer.zero_grad()
