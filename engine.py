@@ -72,7 +72,7 @@ def train_step(model:torch.nn.Module,
         distances = torch.sqrt(torch.sum((y_pred-y)**2,dim=-1)).to(device) # distances [batch_size*98,]
         acc = torch.sum(distances<k).item() / (batch_size*98)
         train_acc += acc
-        print(f'\nbatch:{batch} |average_img_train_loss:{loss:.3f} |acc:{acc:.3f *100}%',end='')
+        print(f'\nbatch:{batch} |average_img_train_loss:{loss:.3f} |acc:{acc*100:.3f}%',end='')
     train_loss /= len(dataloader)
     train_acc /= len(dataloader)
     
@@ -130,7 +130,7 @@ def test_step(model:torch.nn.Module,
             acc = torch.sum(distances<k).item() / (batch_size*98)
             test_acc += acc
             
-            print(f'\nbatch:{batch} |average_img_test_loss:{loss:.3f} |acc:{acc:.3f *100}%',end='')
+            print(f'\nbatch:{batch} |average_img_test_loss:{loss:.3f} |acc:{acc*100:.3f}%',end='')
     test_loss /= len(dataloader)
     test_acc /=len(dataloader)
     return test_loss,test_acc 
