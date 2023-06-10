@@ -34,7 +34,6 @@ if __name__ == "__main__":
   model_save_path = args.model_save_path
 
 
-
   train_dataloader,test_dataloader = create_dataloaders(train_dir,
                                                         test_dir,
                                                           batch_size=batch_size,
@@ -51,7 +50,7 @@ if __name__ == "__main__":
           test_dataloader,
           loss_fn,optimizer,
           device,
-          k=5, # 计算acc时的阈值
+          k=k, # 计算acc时的阈值
           model_save_path=model_save_path,
           scheduler=scheduler,
           checkpoint_path=args.checkpoint_path)
