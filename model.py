@@ -17,7 +17,7 @@ class Resnet50(nn.Module):
         self.model = torchvision.models.resnet50(weights=self.weights)
         self.auto_transforms = self.weights.transforms()
         for param in self.model.parameters():
-            param.requires_grad = False
+            param.requires_grad = True
         for param in self.model.layer4.parameters():
             param.requires_grad = True
         for param in self.model.avgpool.parameters():
