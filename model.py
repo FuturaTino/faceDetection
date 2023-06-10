@@ -44,8 +44,13 @@ class MobileNet(nn.Module):
         self.transforms = weights.transforms()
         for param in self.model.parameters():
             param.requires_grad = False
-        for param in self.model.classifier.parameters():
-            param.requires_grad = True
+        self.model.classifier = nn.Sequential(
+            nn.Linear(960,1280),
+            # Hardwish(),
+            nn.Hardswish(),
+            nn.Dropout(0.2),
+            nn.Linear(1280, outout_features),
+        )
     def forward(self,x):
         x = self.model(x)
         return x
