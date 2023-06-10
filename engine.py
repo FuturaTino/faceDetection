@@ -162,7 +162,7 @@ def train(writer:SummaryWriter,
         train_loss,train_acc = train_step(model,train_dataloader,loss_fn,optimizer,device,k)
         test_loss,test_acc = test_step(model,test_dataloader,loss_fn,optimizer,device,k)
 
-        print(f'epoch:{epoch},train_loss:{train_loss},train_acc:{train_acc},test_loss:{test_loss},test_acc:{test_acc}')
+        print(f'epoch:{epoch},train_loss:{train_loss:.3f},train_acc:{train_acc:.3f},test_loss:{test_loss:.3f},test_acc:{test_acc:.3f}')
 
 
         # q:为什么很少保存整个模型

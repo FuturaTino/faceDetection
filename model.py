@@ -64,7 +64,7 @@ class MobileNet(nn.Module):
                 row_settings=["var_names"])
         
 if __name__ =='__main__':
-    model = MobileNet(196)
+    model = Resnet50(196)
     # x = torch.randn(1,3,224,224)
     # y = model(x)
     # print(y.shape)
