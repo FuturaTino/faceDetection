@@ -44,7 +44,7 @@ def train_step(model:torch.nn.Module,
     train_loss,train_acc = 0,0
     batch_size = dataloader.batch_size
 
-    for batch,(x,y) in enumerate(dataloader):
+    for x,y in tqdm(dataloader,desc='Training'):  
         x,y = x.to(device),y.to(device)
 
         
@@ -52,7 +52,7 @@ def train_step(model:torch.nn.Module,
         y_pred = model(x)
         y = y.reshape(-1,196)
         # 计算损失函数, 1 batch的平均损失
-        loss = loss_fn(y_pred,y) 
+        loss = loss_fn(y_pred,y)  # 1 batch的平均损失,1 batch时98个点，所以这里loss含义时98个点的总偏移量的平方，当loss小于98,1个点偏移不到1
         train_loss += loss.item()
         # 优化器清零
         optimizer.zero_grad()
@@ -70,9 +70,8 @@ def train_step(model:torch.nn.Module,
         # 计算准确率,将每个特征点与真实值进行比较，如果距离小于0.05，认为预测正确
         # 损失函数即为欧式距离
         distances = torch.sqrt(torch.sum((y_pred-y)**2,dim=-1)).to(device) # distances [batch_size*98,]
-        acc = torch.sum(distances<k).item() / (batch_size*98)
+        acc = torch.sum(distances<k).item() / (batch_size*98)  # 一共batch_size *98个点，其中距离小于k=0.05的频率
         train_acc += acc
-        print(f'\nbatch:{batch} |average_img_train_loss:{loss:.3f} |acc:{acc*100:.3f}%',end='')
     train_loss /= len(dataloader)
     train_acc /= len(dataloader)
     
@@ -112,7 +111,7 @@ def test_step(model:torch.nn.Module,
         #q:bn和drop是什么
         #a:bn是batch normalization，批标准化，是一种加速神经网络训练的方法，通过对每一层的输入进行归一化，使得每一层的输入都满足均值为0，方差为1的标准正态分布，从而加速训练
         #a:dropout是一种正则化方法，通过在训练过程中随机让隐藏层的部分神经元失效，从而减少模型的过拟合
-        for batch,(x,y) in enumerate(dataloader):
+        for x,y in tqdm(dataloader,desc="Testing"):
             x,y = x.to(device),y.to(device)
             # 前向传播
             y_pred = model(x)
@@ -130,7 +129,6 @@ def test_step(model:torch.nn.Module,
             acc = torch.sum(distances<k).item() / (batch_size*98)
             test_acc += acc
             
-            print(f'\nbatch:{batch} |average_img_test_loss:{loss:.3f} |acc:{acc*100:.3f}%',end='')
     test_loss /= len(dataloader)
     test_acc /=len(dataloader)
     return test_loss,test_acc 
@@ -160,7 +158,7 @@ def train(writer:SummaryWriter,
         print(f'load checkpoint from {checkpoint_path}')
 
     Path('./model').mkdir(exist_ok=True,parents=True)
-    for epoch in tqdm(range(start_epoch,epochs)):
+    for epoch in range(start_epoch,epochs):
         train_loss,train_acc = train_step(model,train_dataloader,loss_fn,optimizer,device,k)
         test_loss,test_acc = test_step(model,test_dataloader,loss_fn,optimizer,device,k)
 
