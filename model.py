@@ -35,9 +35,31 @@ class Resnet50(nn.Module):
         x = self.model(x)
         return x
 
+
+class MobileNet(nn.Module):
+    def __init__(self,outout_features=196) -> None:
+        super(MobileNet,self).__init__()
+        weights = torchvision.models.MobileNet_V3_Large_Weights.DEFAULT
+        self.model = torchvision.models.mobilenet_v3_large(weights=weights)
+        self.transforms = weights.transforms()
+        for param in self.model.parameters():
+            param.requires_grad = False
+        for param in self.model.classifier.parameters():
+            param.requires_grad = True
+    def forward(self,x):
+        x = self.model(x)
+        return x
+    def info(self):
+        summary(model=self.model, 
+                input_size=(32, 3, 224, 224), # make sure this is "input_size", not "input_shape"
+                verbose=1,
+                # col_names=["input_size"], # uncomment for smaller output
+                col_names=["input_size", "output_size", "num_params", "trainable",],
+                col_width=20,
+                row_settings=["var_names"])
+        
 if __name__ =='__main__':
-    model = Resnet50(196)
-    print(list(model.children()))
+    model = MobileNet(196)
     # x = torch.randn(1,3,224,224)
     # y = model(x)
     # print(y.shape)
