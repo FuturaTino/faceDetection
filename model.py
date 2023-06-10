@@ -43,7 +43,7 @@ class MobileNet(nn.Module):
         self.model = torchvision.models.mobilenet_v3_large(weights=weights)
         self.transforms = weights.transforms()
         for param in self.model.parameters():
-            param.requires_grad = False
+            param.requires_grad = True
         self.model.classifier = nn.Sequential(
             nn.Linear(960,1280),
             # Hardwish(),
