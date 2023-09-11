@@ -27,4 +27,4 @@ torch==2.0.0
 **训练集**
 ![img](https://github.com/FuturaTino/TyporaImages/raw/main//TyporaImages/wps4.jpg)
 
-![img3](C:/Users/future/AppData/Local/Temp/ksohtml8500/wps5.jpg)
+ ![test_set_loss_acc](https://github.com/FuturaTino/TyporaImages/raw/main//TyporaImages/test_set_loss_acc.png)
