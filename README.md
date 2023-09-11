@@ -16,3 +16,15 @@ torch==2.0.0
 - [ ] 利用model去predict自定义图片
 - [ ] 用gradio提供预测人脸特征点服务，部署在huggingface上
 - [ ] 总结报告
+
+# 效果图
+![img](https://github.com/FuturaTino/TyporaImages/raw/main//TyporaImages/wps3.jpg)
+
+![img](https://github.com/FuturaTino/TyporaImages/raw/main//TyporaImages/wps1.jpg)
+
+# 评测指标
+
+**训练集**
+![img](https://github.com/FuturaTino/TyporaImages/raw/main//TyporaImages/wps4.jpg)
+
+![img2](C:/Users/future/AppData/Local/Temp/ksohtml8500/wps5.jpg)
