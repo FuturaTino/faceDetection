@@ -18,13 +18,9 @@ torch==2.0.0
 - [ ] 总结报告
 
 # 效果图
-![img](https://github.com/FuturaTino/TyporaImages/raw/main//TyporaImages/wps3.jpg)
-
 ![img](https://github.com/FuturaTino/TyporaImages/raw/main//TyporaImages/wps1.jpg)
 
 # 评测指标
 
-**训练集**
-![img](https://github.com/FuturaTino/TyporaImages/raw/main//TyporaImages/wps4.jpg)
-
+**测试集**
  ![test_set_loss_acc](https://github.com/FuturaTino/TyporaImages/raw/main//TyporaImages/test_set_loss_acc.png)
